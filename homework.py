@@ -9,7 +9,7 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-from exception import GetStatusException, SendMessageError
+from exception import GetStatusException
 load_dotenv()
 
 logging.basicConfig(
@@ -83,7 +83,6 @@ def parse_status(homeworks):
     if 'homework_name' not in homeworks:
         raise KeyError('Отсутствует ключ "homework_name" в ответе API')
 
-
     homework_name = homeworks.get('homework_name')
     homework_status = homeworks.get('status')
 
@@ -143,8 +142,6 @@ def main():
             logger.error(f'ошибка: {str(e)}')
             send_message(bot, f'Произошла ошибка: {str(e)}')
         time.sleep(RETRY_PERIOD)
-
-
 
 
 if __name__ == '__main__':
