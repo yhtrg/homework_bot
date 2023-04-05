@@ -65,20 +65,16 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверяет ответ API на корректность."""
     if not isinstance(response, dict):
-        logger.error('API вернул список неправильного формата')
         raise TypeError('API вернул список неправильного формата')
 
-    elif 'homeworks' not in response:
-        logger.error('API вернул ответ без списка домашних работ')
+    if 'homeworks' not in response:
         raise TypeError('API вернул ответ без списка домашних работ')
 
-    elif 'current_date' not in response:
-        logger.error('API вернул ответ без текущей даты домашних работ')
+    if 'current_date' not in response:
         raise TypeError('API вернул ответ без текущей даты домашних работ')
 
     homeworks = response.get('homeworks')
     if not isinstance(homeworks, list):
-        logger.error('API вернул список неправильного формата')
         raise TypeError('API вернул список неправильного формата')
     return homeworks
 
@@ -144,9 +140,9 @@ def main():
                 timestamp = response.get('current_date')
             else:
                 logger.debug('статус работы не обновился')
-        except Exception as e:
-            logger.error(f'ошибка: {str(e)}')
-            send_message(bot, f'Произошла ошибка: {str(e)}')
+        finally:
+            logger.error(f'ошибка: {str(Exception)}')
+            send_message(bot, f'Произошла ошибка: {str(Exception)}')
         time.sleep(RETRY_PERIOD)
 
 
