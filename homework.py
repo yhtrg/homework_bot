@@ -43,6 +43,7 @@ def get_api_answer(timestamp):
     params = {'from_date': timestamp}
 
     try:
+        logger.info('Отправлен запрос к API.')
         homework_statuses = requests.get(
             url=ENDPOINT,
             headers=HEADERS,
@@ -50,7 +51,7 @@ def get_api_answer(timestamp):
         )
     except requests.exceptions.RequestException as error:
         error_message = f'Ошибка при запросе к API: {error}'
-        logging.error(error_message)
+        raise KeyError(error_message)
 
     status_code = homework_statuses.status_code
     if status_code != HTTPStatus.OK:
@@ -63,35 +64,39 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверяет ответ API на корректность."""
-    if response is None:
-        logger.error('API вернул неверный ответ')
-        raise TypeError('API вернул неверный ответ')
+    if not isinstance(response, dict):
+        logger.error('API вернул список неправильного формата')
+        raise TypeError('API вернул список неправильного формата')
+
     elif 'homeworks' not in response:
         logger.error('API вернул ответ без списка домашних работ')
         raise TypeError('API вернул ответ без списка домашних работ')
-    elif not isinstance(response['homeworks'], list):
+
+    elif 'current_date' not in response:
+        logger.error('API вернул ответ без текущей даты домашних работ')
+        raise TypeError('API вернул ответ без текущей даты домашних работ')
+
+    homeworks = response.get('homeworks')
+    if not isinstance(homeworks, list):
         logger.error('API вернул список неправильного формата')
         raise TypeError('API вернул список неправильного формата')
-    elif len(response['homeworks']) == 0:
-        logger.debug('API вернул пустой список домашних работ')
-        return False
-    return True
+    return homeworks
 
 
-def parse_status(homeworks):
+def parse_status(homework):
     """Извлекает статус работы из информации о конкретной домашней работе."""
-    if 'homework_name' not in homeworks:
+    homework_name = homework.get('homework_name')
+    homework_status = homework.get('status')
+    if 'homework_name' not in homework:
         raise KeyError('Отсутствует ключ "homework_name" в ответе API')
 
-    homework_name = homeworks.get('homework_name')
-    homework_status = homeworks.get('status')
+    if 'status' not in homework:
+        raise KeyError('Отсутствует ключ "status" в ответе API')
 
     if homework_status not in HOMEWORK_VERDICTS.keys():
-        message = 'Недокументированный статус домашней работы'
-        logging.error(message)
-        raise KeyError(message)
+        raise KeyError('Недокументированный статус домашней работы')
 
-    verdict = HOMEWORK_VERDICTS.get(homework_status)
+    verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -112,11 +117,12 @@ def check_tokens():
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
-        logging.debug(f'Бот отправил сообщение {message}')
+        logger.info(f'Сообщение готово к отправке:{message}')
         bot.send_message(TELEGRAM_CHAT_ID, message)
+        logger.debug(f'Бот отправил сообщение {message}')
     except telegram.error.TelegramError as error:
         error_message = f'Ошибка при отправке сообщения: {error}'
-        logging.error(error_message)
+        logger.error(error_message)
 
 
 def main():
@@ -130,11 +136,11 @@ def main():
         logger.debug(f'Старт новой этерации {timestamp}')
         try:
             response = get_api_answer(timestamp)
-            if check_response(response):
-                for homework in response['homeworks']:
-                    status = parse_status(homework)
-                    if status:
-                        send_message(bot, status)
+            homework = check_response(response)
+            if homework:
+                message = parse_status(homework[0])
+                if message:
+                    send_message(bot, message)
                 timestamp = response.get('current_date')
             else:
                 logger.debug('статус работы не обновился')
