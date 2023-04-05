@@ -140,10 +140,11 @@ def main():
                 timestamp = response.get('current_date')
             else:
                 logger.debug('статус работы не обновился')
+        except Exception as error:
+            logger.error(f'ошибка: {str(error)}')
+            send_message(bot, f'Произошла ошибка: {str(error)}')
         finally:
-            logger.error(f'ошибка: {str(Exception)}')
-            send_message(bot, f'Произошла ошибка: {str(Exception)}')
-        time.sleep(RETRY_PERIOD)
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
